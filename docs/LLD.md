@@ -360,29 +360,7 @@ INDEX idx_status(status)
 
 ---
 
-# 5. JSON Structures
-
-## recipient_details
-
-```json
-{
-  "email": "john@test.com",
-  "phone": "9999999999"
-}
-```
-
-## attributes
-
-```json
-{
-  "amount": "1000",
-  "merchant": "Amazon"
-}
-```
-
----
-
-# 6. Kafka Design
+# 5. Kafka Design
 
 ## Topics
 
@@ -422,7 +400,7 @@ sms-topic
 
 ---
 
-# 7. Processing Flow
+# 6. Processing Flow
 
 1. Client submits notification request.
 2. Notification Service validates request.
@@ -436,6 +414,214 @@ sms-topic
 10. Notification status can be retrieved using delivery records.
 
 ---
+# 7. API Contract Design
+
+## 7.1 Create Notification API
+
+### Endpoint
+
+```http
+POST /v1/notifications
+```
+
+### Purpose
+
+Accepts a notification request from a client application and initiates asynchronous notification processing.
+
+### Request Body
+
+```json
+{
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  "eventType": "PAYMENT_SUCCESS",
+  "recipient": {
+    "email": "john@test.com",
+    "phone": "9999999999"
+  },
+  "attributes": {
+    "amount": "1000",
+    "merchant": "Amazon"
+  }
+}
+```
+
+### Success Response
+
+HTTP 202 Accepted
+
+```json
+{
+  "notificationId": 101,
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  
+}
+```
+
+### Validation Rules
+
+
+| Field      | Validation             |
+| ---------- | ---------------------- |
+| requestId  | Mandatory, UUID format |
+| eventType  | Mandatory              |
+| recipient  | Mandatory              |
+| attributes | Mandatory              |
+| requestId  | Must be unique         |
+
+
+## Supported Event Types
+
+### 1. PAYMENT_SUCCESS
+
+#### Required Attributes
+
+```json
+{
+  "amount": "1000",
+  "merchant": "Amazon"
+}
+```
+
+#### Supported Channels
+
+```text
+EMAIL
+SMS
+```
+
+---
+
+### 2. ORDER_DELIVERED
+
+#### Required Attributes
+
+```json
+{
+  "orderId": "ORD123",
+  "deliveryDate": "2026-06-15"
+}
+```
+
+#### Supported Channels
+
+```text
+EMAIL
+SMS
+```
+
+---
+
+### 3. PASSWORD_RESET
+
+#### Required Attributes
+
+```json
+{
+  "resetLink": "https://example.com/reset"
+}
+```
+
+#### Supported Channels
+
+```text
+EMAIL
+```
+
+---
+
+### Validation Rule
+
+For every notification request:
+
+1. eventType must exist in notification_template.
+2. All required attributes configured for the event type must be present in the request.
+3. Missing required attributes result in HTTP 400 Bad Request.
+
+### Error Responses
+
+#### Duplicate Request
+
+HTTP 409 Conflict
+
+```json
+{
+  "errorCode": "DUPLICATE_REQUEST",
+  "message": "Request already exists"
+}
+```
+
+#### Invalid Request
+
+HTTP 400 Bad Request
+
+```json
+{
+  "errorCode": "MISSING_REQUIRED_ATTRIBUTE",
+  "message": "merchant attribute is mandatory"
+}
+```
+
+---
+
+## 7.2 Get Notification Status API
+
+### Endpoint
+
+```http
+GET /v1/notifications/request/{requestId}
+```
+
+### Purpose
+
+Returns delivery status information for a notification request.
+
+### Path Parameters
+
+| Parameter | Description                                      |
+| --------- | ------------------------------------------------ |
+| requestId | Unique request identifier supplied by the client |
+
+### Success Response
+
+HTTP 200 OK
+
+```json
+{
+  "requestId": "550e8400-e29b-41d4-a716-446655440000",
+  "overallStatus": "PARTIALLY_COMPLETED",
+  "deliveries": [
+    {
+      "channel": "EMAIL",
+      "status": "DELIVERED"
+    },
+    {
+      "channel": "SMS",
+      "status": "FAILED"
+    }
+  ]
+}
+```
+
+### Overall Status Calculation
+
+| Delivery Statuses              | Overall Status      |
+| ------------------------------ | ------------------- |
+| All DELIVERED                  | COMPLETED           |
+| Some DELIVERED and Some FAILED | PARTIALLY_COMPLETED |
+| All FAILED                     | FAILED              |
+| At least one PENDING           | IN_PROGRESS         |
+
+### Error Response
+
+HTTP 404 Not Found
+
+```json
+{
+  "errorCode": "NOTIFICATION_NOT_FOUND",
+  "message": "Notification request not found"
+}
+```
+
 
 # 8. Phase 1 Scope
 
