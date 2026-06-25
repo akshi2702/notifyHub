@@ -3,6 +3,8 @@ package com.notifyhub.notification_service.dto;
 import java.sql.Time;
 import java.util.Map;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 import com.notifyhub.notification_service.enums.EventType;
 
 import jakarta.validation.Valid;
@@ -28,5 +30,6 @@ public class CreateNotificationRequest {
     @NotNull(message = "attributes is mandatory")
     private Map<String, String> attributes;
     
+    @CreationTimestamp
     private Time createdAt;
 }

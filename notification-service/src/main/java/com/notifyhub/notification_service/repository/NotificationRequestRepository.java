@@ -13,5 +13,7 @@ import com.notifyhub.notification_service.entity.NotificationRequest;
 public interface NotificationRequestRepository extends JpaRepository<NotificationRequest, Integer>{
 	
 	Optional<NotificationRequest>findByRequestId(String requestId);
+	
+	
 
 }
